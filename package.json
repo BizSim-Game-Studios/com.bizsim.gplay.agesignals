@@ -1,0 +1,44 @@
+{
+  "name": "com.bizsim.gplay.agesignals",
+  "displayName": "Google Play Age Signals Bridge",
+  "description": "Unity bridge for Google Play Age Signals API (v0.0.2 Beta). Provides Java-to-C# integration with policy-compliant age restriction flags.",
+  "version": "0.1.0",
+  "unity": "6000.3",
+  "unityRelease": "5f2",
+  "changelogUrl": "https://github.com/BizSim-Game-Studios/com.bizsim.gplay.agesignals/blob/main/CHANGELOG.md",
+  "documentationUrl": "https://github.com/BizSim-Game-Studios/com.bizsim.gplay.agesignals/blob/main/README.md",
+  "author": {
+    "name": "Aşkın Ceyhan",
+    "url": "https://github.com/AskinCeyhan"
+  },
+  "company": "BizSim Game Studios",
+  "homepage": "https://www.bizsim.com",
+  "license": "MIT",
+  "keywords": [
+    "google-play",
+    "age-signals",
+    "age-verification",
+    "coppa",
+    "android"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BizSim-Game-Studios/com.bizsim.gplay.agesignals.git"
+  },
+  "samples": [
+    {
+      "displayName": "Basic Integration",
+      "description": "Minimal age gate setup with feature gating and error handling.",
+      "path": "Samples~/BasicIntegration"
+    },
+    {
+      "displayName": "Mock Config Presets",
+      "description": "Pre-configured mock configs for common scenarios (adult, child, teen, unknown, denied, error).",
+      "path": "Samples~/MockPresets"
+    }
+  ],
+  "testables": [
+    "com.bizsim.gplay.agesignals"
+  ],
+  "dependencies": {}
+}

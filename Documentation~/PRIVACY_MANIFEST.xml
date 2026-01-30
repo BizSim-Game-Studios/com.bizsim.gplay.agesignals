@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Privacy Manifest for Google Play Age Signals Bridge
+  Package: com.bizsim.gplay.agesignals
+
+  This manifest declares the data practices of this package.
+  Android-only package for Google Play Age Signals API.
+
+  Reference:
+  - Google Play Data Safety: https://support.google.com/googleplay/android-developer/answer/10787469
+-->
+<privacy-manifest>
+  <data-collection>
+    <!-- Raw age data: collected from Google Play API, ephemeral (in-memory only) -->
+    <data-type category="personal-info" subcategory="age">
+      <collected>true</collected>
+      <shared>false</shared>
+      <ephemeral>true</ephemeral>
+      <required>true</required>
+      <purpose>app-functionality</purpose>
+      <description>
+        Age range and verification status queried from Google Play Age Signals API
+        for age-appropriate content gating. Data is kept in memory only and never
+        persisted to disk or transmitted to external servers.
+      </description>
+    </data-type>
+
+    <!-- Restriction flags: derived locally, persisted with 24h TTL -->
+    <data-type category="app-activity" subcategory="app-interactions">
+      <collected>true</collected>
+      <shared>false</shared>
+      <ephemeral>false</ephemeral>
+      <required>true</required>
+      <retention-period>24-hours</retention-period>
+      <purpose>app-functionality</purpose>
+      <description>
+        Boolean feature-gating flags derived from age signals. Contains no raw
+        age data. Stored in PlayerPrefs with automatic 24-hour expiration.
+      </description>
+    </data-type>
+
+    <!-- Analytics event (optional, requires AGESIGNALS_FIREBASE) -->
+    <data-type category="app-activity" subcategory="app-interactions" optional="true">
+      <collected>true</collected>
+      <shared>true</shared>
+      <shared-with>firebase-analytics</shared-with>
+      <ephemeral>false</ephemeral>
+      <required>false</required>
+      <purpose>analytics</purpose>
+      <description>
+        Binary success/error string logged via Firebase Analytics.
+        No age data included. Only active when AGESIGNALS_FIREBASE define is set.
+      </description>
+    </data-type>
+  </data-collection>
+
+  <network-requests>
+    <api name="Google Play Age Signals API">
+      <initiated-by>google-play-services-sdk</initiated-by>
+      <frequency>once-per-app-launch</frequency>
+      <data-transmitted>none (SDK handles internally)</data-transmitted>
+    </api>
+  </network-requests>
+</privacy-manifest>

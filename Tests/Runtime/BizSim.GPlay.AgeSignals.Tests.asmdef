@@ -1,0 +1,14 @@
+{
+  "name": "BizSim.GPlay.AgeSignals.Tests",
+  "rootNamespace": "BizSim.GPlay.AgeSignals.Tests",
+  "references": ["BizSim.GPlay.AgeSignals", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

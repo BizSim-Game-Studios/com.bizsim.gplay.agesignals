@@ -1,0 +1,5 @@
+<dependencies>
+  <androidPackages>
+    <androidPackage spec="com.google.android.play:age-signals:0.0.2" />
+  </androidPackages>
+</dependencies>
