@@ -226,6 +226,46 @@ namespace BizSim.GPlay.AgeSignals
     }
 
     /// <summary>
+    /// Error codes returned by the Age Signals API or bridge layer.
+    /// Maps to error codes from AgeSignalsBridge.java and Google Play SDK.
+    /// </summary>
+    public enum AgeSignalsErrorCode
+    {
+        /// <summary>Age Signals API not available on this device (-1). Not retryable.</summary>
+        ApiNotAvailable = -1,
+
+        /// <summary>Play Store app not found on device (-2). Not retryable.</summary>
+        PlayStoreNotFound = -2,
+
+        /// <summary>Network error — unable to reach Google servers (-3). Retryable.</summary>
+        NetworkError = -3,
+
+        /// <summary>Google Play Services not found or outdated (-4). Not retryable.</summary>
+        PlayServicesNotFound = -4,
+
+        /// <summary>Cannot bind to Age Signals service (-5). Retryable.</summary>
+        CannotBindToService = -5,
+
+        /// <summary>Play Store version too old to support Age Signals API (-6). Not retryable.</summary>
+        PlayStoreVersionOutdated = -6,
+
+        /// <summary>Play Services version too old to support Age Signals API (-7). Not retryable.</summary>
+        PlayServicesVersionOutdated = -7,
+
+        /// <summary>Transient client error — temporary issue (-8). Retryable.</summary>
+        ClientTransientError = -8,
+
+        /// <summary>App not recognized by Play Store (not installed via Play) (-9). Not retryable.</summary>
+        AppNotOwned = -9,
+
+        /// <summary>Internal bridge error — JNI call failed, serialization error, etc. (-100).</summary>
+        InternalError = -100,
+
+        /// <summary>Unknown error code.</summary>
+        Unknown = 0
+    }
+
+    /// <summary>
     /// Error returned by the Age Signals API or the bridge layer.
     /// </summary>
     [Serializable]
@@ -237,21 +277,24 @@ namespace BizSim.GPlay.AgeSignals
         public string errorMessage;
         public bool isRetryable;
 
-        /// <summary>Human-readable error code name for logging and debugging.</summary>
-        public string ErrorCodeName => errorCode switch
+        /// <summary>Type-safe error code enum for readable error handling.</summary>
+        public AgeSignalsErrorCode Type => errorCode switch
         {
-            -1  => "API_NOT_AVAILABLE",
-            -2  => "PLAY_STORE_NOT_FOUND",
-            -3  => "NETWORK_ERROR",
-            -4  => "PLAY_SERVICES_NOT_FOUND",
-            -5  => "CANNOT_BIND_TO_SERVICE",
-            -6  => "PLAY_STORE_VERSION_OUTDATED",
-            -7  => "PLAY_SERVICES_VERSION_OUTDATED",
-            -8  => "CLIENT_TRANSIENT_ERROR",
-            -9  => "APP_NOT_OWNED",
-            -100 => "INTERNAL_ERROR",
-            _   => $"UNKNOWN_{errorCode}"
+            -1  => AgeSignalsErrorCode.ApiNotAvailable,
+            -2  => AgeSignalsErrorCode.PlayStoreNotFound,
+            -3  => AgeSignalsErrorCode.NetworkError,
+            -4  => AgeSignalsErrorCode.PlayServicesNotFound,
+            -5  => AgeSignalsErrorCode.CannotBindToService,
+            -6  => AgeSignalsErrorCode.PlayStoreVersionOutdated,
+            -7  => AgeSignalsErrorCode.PlayServicesVersionOutdated,
+            -8  => AgeSignalsErrorCode.ClientTransientError,
+            -9  => AgeSignalsErrorCode.AppNotOwned,
+            -100 => AgeSignalsErrorCode.InternalError,
+            _   => AgeSignalsErrorCode.Unknown
         };
+
+        /// <summary>Human-readable error code name for logging and debugging.</summary>
+        public string ErrorCodeName => Type.ToString().ToUpperInvariant();
     }
 
     /// <summary>

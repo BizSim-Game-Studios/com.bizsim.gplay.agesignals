@@ -314,7 +314,7 @@ namespace BizSim.GPlay.AgeSignals
             }
             catch (Exception e)
             {
-                Debug.LogError($"[AgeSignals] Java bridge call failed: {e.Message}");
+                BizSimLogger.Error($"Java bridge call failed: {e.Message}");
                 IsChecking = false;
                 OnError?.Invoke(new AgeSignalsError
                 {
@@ -343,7 +343,7 @@ namespace BizSim.GPlay.AgeSignals
             if (_useFakeForTesting)
             {
                 GetFakeAgeRange(_fakeStatus, _fakeAge, out int fakeLower, out int fakeUpper);
-                Debug.Log($"[AgeSignals] Editor test mode — status={_fakeStatus}, " +
+                BizSimLogger.Info($"Editor test mode — status={_fakeStatus}, " +
                           $"age=[{fakeLower}-{fakeUpper}]");
                 var fakeResult = new AgeSignalsResult
                 {
@@ -363,7 +363,7 @@ namespace BizSim.GPlay.AgeSignals
                 // Simulate an error if configured
                 if (_mockConfig.SimulateError)
                 {
-                    Debug.Log($"[AgeSignals] Editor mock — simulating error code {_mockConfig.SimulatedErrorCode}");
+                    BizSimLogger.Info($"Editor mock — simulating error code {_mockConfig.SimulatedErrorCode}");
                     var error = new AgeSignalsError
                     {
                         errorCode = _mockConfig.SimulatedErrorCode,
@@ -376,7 +376,7 @@ namespace BizSim.GPlay.AgeSignals
                 }
 
                 // Build result from mock config (age range computed from status + MockAge)
-                Debug.Log($"[AgeSignals] Editor mock — status={_mockConfig.MockStatus}, " +
+                BizSimLogger.Info($"Editor mock — status={_mockConfig.MockStatus}, " +
                           $"age=[{_mockConfig.AgeLower}-{_mockConfig.AgeUpper}]");
                 var mockResult = new AgeSignalsResult
                 {
@@ -391,7 +391,7 @@ namespace BizSim.GPlay.AgeSignals
             }
 #endif
             // Default fallback: simulate a user outside supported jurisdiction
-            Debug.Log("[AgeSignals] Editor mode — no mock config assigned, returning NotApplicable");
+            BizSimLogger.Info("Editor mode — no mock config assigned, returning NotApplicable");
             var defaultResult = new AgeSignalsResult
             {
                 UserStatus = AgeVerificationStatus.NotApplicable,
@@ -429,14 +429,14 @@ namespace BizSim.GPlay.AgeSignals
                     MostRecentApprovalDateMs = parsed.mostRecentApprovalDate
                 };
 
-                Debug.Log($"[AgeSignals] Result: status={result.UserStatus}, " +
+                BizSimLogger.Info($"Result: status={result.UserStatus}, " +
                           $"age=[{result.AgeLower}-{result.AgeUpper}]");
 
                 ProcessResult(result);
             }
             catch (Exception e)
             {
-                Debug.LogError($"[AgeSignals] Failed to parse result: {e.Message}\nJSON: {json}");
+                BizSimLogger.Error($"Failed to parse result: {e.Message}\nJSON: {json}");
                 OnError?.Invoke(new AgeSignalsError
                 {
                     errorCode = -100,
@@ -474,7 +474,7 @@ namespace BizSim.GPlay.AgeSignals
             {
                 var error = JsonUtility.FromJson<AgeSignalsError>(json);
 
-                Debug.LogWarning($"[AgeSignals] Error: {error.ErrorCodeName} ({error.errorCode})" +
+                BizSimLogger.Warning($"Error: {error.ErrorCodeName} ({error.errorCode})" +
                                  $" — {error.errorMessage} — retryable={error.isRetryable}");
 
                 // Automatic retry with exponential backoff for transient errors
@@ -482,7 +482,7 @@ namespace BizSim.GPlay.AgeSignals
                 {
                     _retryCount++;
                     float delay = RETRY_BASE_DELAY * Mathf.Pow(2, _retryCount - 1);
-                    Debug.Log($"[AgeSignals] Retry {_retryCount}/{MAX_RETRIES} in {delay}s");
+                    BizSimLogger.Info($"Retry {_retryCount}/{MAX_RETRIES} in {delay}s");
                     StartCoroutine(RetryAfterDelay(delay));
                     return;
                 }
@@ -492,7 +492,7 @@ namespace BizSim.GPlay.AgeSignals
                 // Fall back to previous session flags if available
                 if (CurrentFlags != null)
                 {
-                    Debug.Log("[AgeSignals] Using previous session flags as fallback");
+                    BizSimLogger.Info("Using previous session flags as fallback");
                     OnRestrictionsUpdated?.Invoke(CurrentFlags);
                 }
 
@@ -500,7 +500,7 @@ namespace BizSim.GPlay.AgeSignals
             }
             catch (Exception e)
             {
-                Debug.LogError($"[AgeSignals] Failed to parse error: {e.Message}\nJSON: {json}");
+                BizSimLogger.Error($"Failed to parse error: {e.Message}\nJSON: {json}");
             }
         }
 
@@ -606,11 +606,11 @@ namespace BizSim.GPlay.AgeSignals
                         if (ageHours <= FLAGS_MAX_AGE_HOURS)
                         {
                             CurrentFlags = loaded;
-                            Debug.Log($"[AgeSignals] Loaded cached flags ({ageHours:F1}h old)");
+                            BizSimLogger.Info($"Loaded cached flags ({ageHours:F1}h old)");
                             return;
                         }
 
-                        Debug.Log($"[AgeSignals] Cached flags expired ({ageHours:F1}h > {FLAGS_MAX_AGE_HOURS}h), using defaults");
+                        BizSimLogger.Info($"Cached flags expired ({ageHours:F1}h > {FLAGS_MAX_AGE_HOURS}h), using defaults");
                         PlayerPrefs.DeleteKey(FLAGS_PREFS_KEY);
                     }
                     else
@@ -621,7 +621,7 @@ namespace BizSim.GPlay.AgeSignals
                 }
                 catch (Exception e)
                 {
-                    Debug.LogWarning($"[AgeSignals] Failed to load cached flags: {e.Message}");
+                    BizSimLogger.Warning($"Failed to load cached flags: {e.Message}");
                     PlayerPrefs.DeleteKey(FLAGS_PREFS_KEY);
                 }
             }
@@ -665,10 +665,10 @@ namespace BizSim.GPlay.AgeSignals
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[AgeSignals] Analytics log failed: {e.Message}");
+                BizSimLogger.Warning($"Analytics log failed: {e.Message}");
             }
 #else
-            Debug.Log($"[AgeSignals] API call result: {result}");
+            BizSimLogger.Info($"API call result: {result}");
 #endif
         }
 

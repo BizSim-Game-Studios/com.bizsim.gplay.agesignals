@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-02-01
+
+Professional quality improvements for release builds and developer experience.
+
+### Added
+- **BizSimLogger** — Zero-allocation conditional logging with `[Conditional("DEBUG")]`
+  - Verbose, Info, Warning, Error log levels
+  - Compiler strips all Info/Warning calls in Release builds
+  - Configurable `MinLevel` for runtime filtering
+- **AgeSignalsErrorCode** enum — Type-safe error handling with 11 error types
+  - Replaces magic number error codes with readable enum values
+  - `AgeSignalsError.Type` property for switch/if statements
+  - IntelliSense support for error handling
+
+### Changed
+- Replaced 16 `Debug.Log` calls with `BizSimLogger` throughout `AgeSignalsController`
+  - 10 Info-level logs (normal flow, results, cache)
+  - 3 Warning-level logs (retries, analytics failures)
+  - 3 Error-level logs (JNI exceptions, parse failures)
+- Updated `AgeSignalsError.ErrorCodeName` to use enum-based ToString()
+
+### Performance
+- **Zero logging overhead** in Release builds (all Info/Warning calls compiled out)
+- **Zero string allocation** for disabled log levels
+
 ## [0.1.0] - 2026-01-30
 
 Initial release with full Age Signals API bridge, dynamic feature system, and Editor tooling.
