@@ -2,10 +2,12 @@
 
 [![Unity 6000.3+](https://img.shields.io/badge/Unity-6000.3%2B-blue.svg)](https://unity.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
+[![Version](https://img.shields.io/badge/Version-0.1.0-orange.svg)](CHANGELOG.md)
 
 > **⚠️ Unofficial package.** This is a community-built Unity bridge for the [Google Play Age Signals API](https://developer.android.com/games/agesignals). It is **not** an official Google product. The underlying Age Signals SDK (v0.0.2) is currently in **beta**.
 
 **Package:** `com.bizsim.gplay.agesignals`
+**Version:** 0.1.0 (Initial Release)
 **Namespace:** `BizSim.GPlay.AgeSignals`
 **Author:** BizSim Game Studios ([bizsim.com](https://www.bizsim.com))
 **License:** MIT
@@ -297,3 +299,31 @@ For detailed data safety declarations (Google Play Console form), see:
 ### Input System Compatibility
 
 The runtime debug menu (`AgeSignalsDebugMenu`) supports both Unity's legacy Input Manager and the new Input System package. The assembly definition uses `versionDefines` to detect `com.unity.inputsystem` at compile time — no manual configuration needed. Works with all three Player Settings modes: **Old**, **New**, and **Both**.
+
+## ⚠️ Beta Dependency Warning
+
+This package depends on **`com.google.android.play:age-signals:0.0.2`**, which is a **Google Beta SDK**. Be aware of the following risks:
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| **Breaking API changes** | Java bridge calls may fail after a Google SDK update | Pin the version in `Dependencies.xml`; test after each update |
+| **Gradle version conflicts** | Other Google Play libraries may pull a different version | Run **Assets → External Dependency Manager → Android Resolver → Force Resolve** after adding/updating any Google Play dependency |
+| **Deprecation without notice** | Beta SDKs have no long-term support guarantee | Monitor [Google Play Age Signals release notes](https://developer.android.com/games/agesignals) for status changes |
+| **Limited device coverage** | Beta rollout may not be available on all devices/regions | The controller gracefully falls back to cached flags when the API is unavailable |
+
+### Gradle Force Resolve
+
+If you encounter duplicate class errors or version conflicts after adding this package alongside other Google Play libraries (e.g., Play Integrity, Play Review), run:
+
+1. **Assets → External Dependency Manager → Android Resolver → Force Resolve**
+2. Check `Assets/Plugins/Android/mainTemplate.gradle` for conflicting version entries
+3. If conflicts persist, add an explicit version override in your project's `Dependencies.xml`:
+   ```xml
+   <dependencies>
+     <androidPackages>
+       <androidPackage spec="com.google.android.play:age-signals:0.0.2" />
+     </androidPackages>
+   </dependencies>
+   ```
+
+> **Tip:** Third-party ad network SDKs (IronSource, AdMob, AppLovin, etc.) may transitively pull a different version of `com.google.android.play:*` libraries. After adding or updating any ad SDK, check the Gradle build log for `Duplicate class` or `Could not resolve` warnings. In Android Studio: **Build → Build Output** or run `./gradlew dependencies` to inspect the resolved dependency tree.

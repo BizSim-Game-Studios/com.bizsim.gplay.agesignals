@@ -8,6 +8,10 @@ using UnityEngine;
 
 namespace BizSim.GPlay.AgeSignals.Editor
 {
+    /// <summary>
+    /// Custom inspector for <see cref="AgeSignalsDecisionLogic"/> that renders a feature
+    /// summary table and an explanatory info card with usage examples.
+    /// </summary>
     [CustomEditor(typeof(AgeSignalsDecisionLogic))]
     public class AgeSignalsDecisionLogicEditor : UnityEditor.Editor
     {

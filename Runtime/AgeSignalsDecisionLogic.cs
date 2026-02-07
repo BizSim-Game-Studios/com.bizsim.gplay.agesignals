@@ -14,9 +14,20 @@ namespace BizSim.GPlay.AgeSignals
     /// Features are configurable from the Inspector via a dynamic list.
     /// Subclass and override <see cref="ComputeFlags"/> for fully custom logic.
     /// </summary>
-    [CreateAssetMenu(menuName = "BizSim/Age Signals Decision Logic")]
+    [CreateAssetMenu(menuName = "BizSim/Age Signals/Age Signals Decision Logic")]
     public class AgeSignalsDecisionLogic : ScriptableObject
     {
+        // Default thresholds are aligned with Google Play Family Policy and COPPA:
+        //   • 18+ (requiresAdult) — Real-money gambling, casino, loot boxes with real value.
+        //     Required by Google Play Developer Program Policy §Gambling (2024-11) and
+        //     most jurisdictions' gambling regulations.
+        //   • 16+ — User-to-user trading / marketplace. Aligned with EU Digital Services Act
+        //     Art. 28(2) which restricts profiling of minors under 16 for commercial purposes.
+        //   • 13+ — Chat / social features. Matches COPPA (16 CFR §312) "actual knowledge"
+        //     threshold and Google Play Families Self-Certified Ads SDK Requirements.
+        //   • Personalized Ads = 13+ — COPPA safe harbor; users under 13 receive
+        //     non-personalized ads only (Google AdMob / IronSource COPPA tag).
+
         [Header("Feature Definitions")]
         [Tooltip("List of age-gated features. Each defines a key, label, minimum age, and whether adult verification is required.")]
         [SerializeField] private List<AgeFeature> _features = new()
@@ -38,8 +49,10 @@ namespace BizSim.GPlay.AgeSignals
         public int PersonalizedAdsMinAge => _personalizedAdsMinAge;
 
         /// <summary>
-        /// Resets features to the default set (gambling 18+, marketplace 16+, chat 13+).
-        /// Useful for testing or factory reset scenarios.
+        /// Resets features to the default set aligned with Google Play and COPPA policies:
+        /// gambling 18+ (requiresAdult), marketplace 16+ (EU DSA), chat 13+ (COPPA),
+        /// and personalized ads at 13+.
+        /// Called by Unity on asset creation and useful for factory reset scenarios.
         /// </summary>
         public void Reset()
         {
@@ -72,7 +85,6 @@ namespace BizSim.GPlay.AgeSignals
                 // Block all dynamic features
                 foreach (var feature in _features)
                     flags.SetFeature(feature.key, false);
-                SyncDeprecatedFields(flags);
                 return;
             }
 
@@ -92,20 +104,28 @@ namespace BizSim.GPlay.AgeSignals
 
             flags.PersonalizedAdsEnabled = noData || !result.IsUnder(_personalizedAdsMinAge);
             flags.NeedsVerification = result.UserStatus == AgeVerificationStatus.Unknown;
-
-            SyncDeprecatedFields(flags);
         }
 
         /// <summary>
-        /// Syncs deprecated fields from dynamic Features list for backward compatibility.
+        /// Computes a deterministic hash string from the current feature configuration.
+        /// Used by <see cref="AgeSignalsCacheLogic"/> to detect config changes and
+        /// invalidate stale cached flags when thresholds are modified between app updates.
         /// </summary>
-        private static void SyncDeprecatedFields(AgeRestrictionFlags flags)
+        public string ComputeConfigHash()
         {
-#pragma warning disable CS0618 // Obsolete member access intentional for backward compat
-            flags.FeatureAEnabled = flags.IsFeatureEnabled(AgeFeatureKeys.Gambling);
-            flags.FeatureBFullAccess = flags.IsFeatureEnabled(AgeFeatureKeys.Marketplace);
-            flags.FeatureCEnabled = flags.IsFeatureEnabled(AgeFeatureKeys.Chat);
-#pragma warning restore CS0618
+            var sb = new System.Text.StringBuilder();
+            sb.Append("v1|ads=").Append(_personalizedAdsMinAge);
+            if (_features != null)
+            {
+                foreach (var f in _features)
+                {
+                    if (f == null) continue;
+                    sb.Append('|').Append(f.key)
+                      .Append(':').Append(f.minAge)
+                      .Append(':').Append(f.requiresAdult ? '1' : '0');
+                }
+            }
+            return sb.ToString();
         }
 
         private void OnValidate()

@@ -18,7 +18,7 @@ namespace BizSim.GPlay.AgeSignals.Samples
     /// </summary>
     public static class CreateMockPresets
     {
-        [MenuItem("Assets/Create/BizSim/Age Signals Mock Presets")]
+        [MenuItem("Assets/Create/BizSim/Age Signals/Age Signals Mock Presets")]
         public static void Create()
         {
             string folder = GetSelectedFolder();

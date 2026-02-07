@@ -8,6 +8,11 @@ using UnityEngine;
 
 namespace BizSim.GPlay.AgeSignals.Editor
 {
+    /// <summary>
+    /// Custom inspector for <see cref="AgeSignalsMockConfig"/> that provides a visual
+    /// mock response editor, error simulation controls, a JSON preview card,
+    /// and a reference guide for verification statuses.
+    /// </summary>
     [CustomEditor(typeof(AgeSignalsMockConfig))]
     public class AgeSignalsMockConfigEditor : UnityEditor.Editor
     {
@@ -189,21 +194,10 @@ namespace BizSim.GPlay.AgeSignals.Editor
 
                 // Error code reference
                 int code = _simulatedErrorCode.intValue;
-                string codeName = code switch
-                {
-                    -1 => "API_NOT_AVAILABLE",
-                    -2 => "PLAY_STORE_NOT_FOUND",
-                    -3 => "NETWORK_ERROR",
-                    -4 => "PLAY_SERVICES_NOT_FOUND",
-                    -5 => "CANNOT_BIND_TO_SERVICE",
-                    -6 => "PLAY_STORE_VERSION_OUTDATED",
-                    -7 => "PLAY_SERVICES_VERSION_OUTDATED",
-                    -8 => "CLIENT_TRANSIENT_ERROR",
-                    -9 => "APP_NOT_OWNED",
-                    -100 => "INTERNAL_ERROR",
-                    _ => $"UNKNOWN ({code})"
-                };
-                bool retryable = code >= -8 && code <= -1;
+                // Reuse AgeSignalsError for consistent name resolution
+                var tempError = new AgeSignalsError { errorCode = code };
+                string codeName = tempError.ErrorCodeName;
+                bool retryable = AgeSignalsError.IsRetryableCode(code);
 
                 var infoRect = EditorGUILayout.GetControlRect(false, 20);
                 Color infoColor = retryable ? Warn : Red;
@@ -262,15 +256,9 @@ namespace BizSim.GPlay.AgeSignals.Editor
             if (config.SimulateError)
             {
                 int code = config.SimulatedErrorCode;
-                string codeName = code switch
-                {
-                    -1 => "API_NOT_AVAILABLE",
-                    -3 => "NETWORK_ERROR",
-                    -9 => "APP_NOT_OWNED",
-                    -100 => "INTERNAL_ERROR",
-                    _ => $"UNKNOWN_{code}"
-                };
-                bool retryable = code >= -8 && code <= -1;
+                var tempError = new AgeSignalsError { errorCode = code };
+                string codeName = tempError.ErrorCodeName;
+                bool retryable = AgeSignalsError.IsRetryableCode(code);
                 json = $"<color=#569cd6>Error Response</color>\n" +
                        $"  errorCode: <color=#b5cea8>{code}</color>\n" +
                        $"  errorMessage: <color=#ce9178>\"Simulated error (mock config)\"</color>\n" +

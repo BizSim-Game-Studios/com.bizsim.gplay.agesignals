@@ -1,0 +1,25 @@
+{
+  "name": "BizSim.GPlay.AgeSignals.UniTask",
+  "rootNamespace": "BizSim.GPlay.AgeSignals.UniTaskSupport",
+  "references": [
+    "UniTask",
+    "BizSim.GPlay.AgeSignals"
+  ],
+  "includePlatforms": ["Android", "Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "AGESIGNALS_UNITASK"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.cysharp.unitask",
+      "expression": "",
+      "define": "AGESIGNALS_UNITASK"
+    }
+  ],
+  "noEngineReferences": false
+}

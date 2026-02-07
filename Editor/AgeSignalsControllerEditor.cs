@@ -10,6 +10,11 @@ using UnityEngine;
 
 namespace BizSim.GPlay.AgeSignals.Editor
 {
+    /// <summary>
+    /// Custom inspector for <see cref="AgeSignalsController"/> providing a card-based UI
+    /// with setup, simulation, run check, results, and debug sections.
+    /// Uses a dark-theme-safe WCAG AA palette with foldable cards and status pills.
+    /// </summary>
     [CustomEditor(typeof(AgeSignalsController))]
     public class AgeSignalsControllerEditor : UnityEditor.Editor
     {
@@ -91,6 +96,7 @@ namespace BizSim.GPlay.AgeSignals.Editor
             }
         }
 
+        /// <summary>Lazily initializes all cached <see cref="GUIStyle"/> instances.</summary>
         private void EnsureStyles()
         {
             if (_titleStyle != null) return;
@@ -252,6 +258,9 @@ namespace BizSim.GPlay.AgeSignals.Editor
             }
         }
 
+        /// <summary>
+        /// Resolves the current controller state into a human-readable status label and color.
+        /// </summary>
         private void GetStatus(AgeSignalsController ctrl, AgeRestrictionFlags flags,
             out string label, out Color color)
         {
@@ -287,6 +296,7 @@ namespace BizSim.GPlay.AgeSignals.Editor
             }
         }
 
+        /// <summary>Returns the display label for the active data source (Simulation, Mock config, API, or Cached).</summary>
         private string GetSourceLabel()
         {
             if (_useFakeForTesting.boolValue) return "Simulation";
@@ -732,9 +742,7 @@ namespace BizSim.GPlay.AgeSignals.Editor
 
                     if (GUILayout.Button("Clear cache", EditorStyles.miniButton, GUILayout.Width(80)))
                     {
-                        PlayerPrefs.DeleteKey(AgeSignalsController.FLAGS_PREFS_KEY);
-                        PlayerPrefs.Save();
-                        Debug.Log("[AgeSignals] Cached flags cleared from PlayerPrefs.");
+                        ((AgeSignalsController)target).ClearCachedData();
                     }
 
                     EditorGUILayout.EndHorizontal();

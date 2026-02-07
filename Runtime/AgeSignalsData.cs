@@ -64,6 +64,43 @@ namespace BizSim.GPlay.AgeSignals
     }
 
     /// <summary>
+    /// Error codes returned by the Age Signals API or the bridge layer.
+    /// Values -1 through -9 are defined by Google's SDK. Values -100 and below are internal.
+    /// </summary>
+    public enum AgeSignalsErrorCode
+    {
+        /// <summary>API not available on this device (-1). Retryable.</summary>
+        ApiNotAvailable = -1,
+
+        /// <summary>Play Store not found (-2). Retryable.</summary>
+        PlayStoreNotFound = -2,
+
+        /// <summary>Network error (-3). Retryable.</summary>
+        NetworkError = -3,
+
+        /// <summary>Google Play Services not found (-4). Retryable.</summary>
+        PlayServicesNotFound = -4,
+
+        /// <summary>Cannot bind to service (-5). Retryable.</summary>
+        CannotBindToService = -5,
+
+        /// <summary>Play Store version outdated (-6). Retryable.</summary>
+        PlayStoreVersionOutdated = -6,
+
+        /// <summary>Google Play Services version outdated (-7). Retryable.</summary>
+        PlayServicesVersionOutdated = -7,
+
+        /// <summary>Client transient error (-8). Retryable.</summary>
+        ClientTransientError = -8,
+
+        /// <summary>App not owned — user did not install via Play Store (-9). Not retryable.</summary>
+        AppNotOwned = -9,
+
+        /// <summary>Internal bridge error — JNI call failed, serialization error, etc. (-100).</summary>
+        InternalError = -100
+    }
+
+    /// <summary>
     /// User verification status returned by the Google Play Age Signals API.
     /// Maps directly to <c>AgeSignalsVerificationStatus</c> enum values from the native SDK.
     /// </summary>
@@ -152,20 +189,6 @@ namespace BizSim.GPlay.AgeSignals
         /// <summary>Access denied (parental approval was explicitly rejected).</summary>
         public bool AccessDenied;
 
-        // --- Deprecated Feature Flags (use Features list + IsFeatureEnabled instead) ---
-
-        /// <summary>Feature requiring 18+ access only (e.g., casino, gambling).</summary>
-        [Obsolete("Use IsFeatureEnabled(\"gambling\") instead. This field will be removed in a future version.")]
-        public bool FeatureAEnabled;
-
-        /// <summary>Feature with tiered access based on age (e.g., trading, marketplace).</summary>
-        [Obsolete("Use IsFeatureEnabled(\"marketplace\") instead. This field will be removed in a future version.")]
-        public bool FeatureBFullAccess;
-
-        /// <summary>Feature with additional age restriction (e.g., chat, social).</summary>
-        [Obsolete("Use IsFeatureEnabled(\"chat\") instead. This field will be removed in a future version.")]
-        public bool FeatureCEnabled;
-
         /// <summary>Whether personalized advertising is allowed for this user.</summary>
         public bool PersonalizedAdsEnabled;
 
@@ -174,6 +197,22 @@ namespace BizSim.GPlay.AgeSignals
 
         /// <summary>ISO 8601 timestamp of when this decision was made.</summary>
         public string DecisionTimestamp;
+
+        /// <summary>
+        /// Hash of the <see cref="AgeSignalsDecisionLogic"/> configuration at decision time.
+        /// When the config changes (e.g., age thresholds modified in a new app version),
+        /// this hash will mismatch and the cache will be invalidated — preventing stale
+        /// restriction flags from persisting beyond the update.
+        /// </summary>
+        public string ConfigHash;
+
+        /// <summary>
+        /// Package version that produced these flags (e.g., "0.1.0").
+        /// When the SDK version changes after an upgrade, the cache is invalidated
+        /// to ensure flags are recomputed with the new decision logic code.
+        /// Mirrors the pattern used by the InstallReferrer package.
+        /// </summary>
+        public string SdkVersion;
 
         // --- Dynamic Feature Flags ---
 
@@ -226,46 +265,6 @@ namespace BizSim.GPlay.AgeSignals
     }
 
     /// <summary>
-    /// Error codes returned by the Age Signals API or bridge layer.
-    /// Maps to error codes from AgeSignalsBridge.java and Google Play SDK.
-    /// </summary>
-    public enum AgeSignalsErrorCode
-    {
-        /// <summary>Age Signals API not available on this device (-1). Not retryable.</summary>
-        ApiNotAvailable = -1,
-
-        /// <summary>Play Store app not found on device (-2). Not retryable.</summary>
-        PlayStoreNotFound = -2,
-
-        /// <summary>Network error — unable to reach Google servers (-3). Retryable.</summary>
-        NetworkError = -3,
-
-        /// <summary>Google Play Services not found or outdated (-4). Not retryable.</summary>
-        PlayServicesNotFound = -4,
-
-        /// <summary>Cannot bind to Age Signals service (-5). Retryable.</summary>
-        CannotBindToService = -5,
-
-        /// <summary>Play Store version too old to support Age Signals API (-6). Not retryable.</summary>
-        PlayStoreVersionOutdated = -6,
-
-        /// <summary>Play Services version too old to support Age Signals API (-7). Not retryable.</summary>
-        PlayServicesVersionOutdated = -7,
-
-        /// <summary>Transient client error — temporary issue (-8). Retryable.</summary>
-        ClientTransientError = -8,
-
-        /// <summary>App not recognized by Play Store (not installed via Play) (-9). Not retryable.</summary>
-        AppNotOwned = -9,
-
-        /// <summary>Internal bridge error — JNI call failed, serialization error, etc. (-100).</summary>
-        InternalError = -100,
-
-        /// <summary>Unknown error code.</summary>
-        Unknown = 0
-    }
-
-    /// <summary>
     /// Error returned by the Age Signals API or the bridge layer.
     /// </summary>
     [Serializable]
@@ -277,8 +276,16 @@ namespace BizSim.GPlay.AgeSignals
         public string errorMessage;
         public bool isRetryable;
 
-        /// <summary>Type-safe error code enum for readable error handling.</summary>
-        public AgeSignalsErrorCode Type => errorCode switch
+        /// <summary>
+        /// Whether this error code represents a transient failure that can be retried.
+        /// Matches the Java bridge logic: error codes -1 through -8 are transient.
+        /// </summary>
+        public static bool IsRetryableCode(int code) =>
+            code >= (int)AgeSignalsErrorCode.ClientTransientError &&
+            code <= (int)AgeSignalsErrorCode.ApiNotAvailable;
+
+        /// <summary>Strongly-typed error code enum. Returns <see cref="AgeSignalsErrorCode.InternalError"/> for unrecognized values.</summary>
+        public AgeSignalsErrorCode ErrorCodeEnum => errorCode switch
         {
             -1  => AgeSignalsErrorCode.ApiNotAvailable,
             -2  => AgeSignalsErrorCode.PlayStoreNotFound,
@@ -290,11 +297,24 @@ namespace BizSim.GPlay.AgeSignals
             -8  => AgeSignalsErrorCode.ClientTransientError,
             -9  => AgeSignalsErrorCode.AppNotOwned,
             -100 => AgeSignalsErrorCode.InternalError,
-            _   => AgeSignalsErrorCode.Unknown
+            _   => AgeSignalsErrorCode.InternalError
         };
 
         /// <summary>Human-readable error code name for logging and debugging.</summary>
-        public string ErrorCodeName => Type.ToString().ToUpperInvariant();
+        public string ErrorCodeName => errorCode switch
+        {
+            -1  => nameof(AgeSignalsErrorCode.ApiNotAvailable),
+            -2  => nameof(AgeSignalsErrorCode.PlayStoreNotFound),
+            -3  => nameof(AgeSignalsErrorCode.NetworkError),
+            -4  => nameof(AgeSignalsErrorCode.PlayServicesNotFound),
+            -5  => nameof(AgeSignalsErrorCode.CannotBindToService),
+            -6  => nameof(AgeSignalsErrorCode.PlayStoreVersionOutdated),
+            -7  => nameof(AgeSignalsErrorCode.PlayServicesVersionOutdated),
+            -8  => nameof(AgeSignalsErrorCode.ClientTransientError),
+            -9  => nameof(AgeSignalsErrorCode.AppNotOwned),
+            -100 => nameof(AgeSignalsErrorCode.InternalError),
+            _   => $"Unknown({errorCode})"
+        };
     }
 
     /// <summary>

@@ -18,7 +18,7 @@ namespace BizSim.GPlay.AgeSignals
     /// <item><b>Unknown / NotApplicable</b> — no age data (range: -1, -1)</item>
     /// </list>
     /// </summary>
-    [CreateAssetMenu(menuName = "BizSim/Age Signals Mock Config")]
+    [CreateAssetMenu(menuName = "BizSim/Age Signals/Age Signals Mock Config")]
     public class AgeSignalsMockConfig : ScriptableObject
     {
         [Header("Mock API Response")]
@@ -33,8 +33,8 @@ namespace BizSim.GPlay.AgeSignals
         [Tooltip("When enabled, simulates an API error instead of a successful response.")]
         public bool SimulateError = false;
 
-        [Tooltip("Error code to simulate (e.g., -3 for NETWORK_ERROR, -1 for API_NOT_AVAILABLE).")]
-        public int SimulatedErrorCode = -3;
+        [Tooltip("Error code to simulate. See AgeSignalsErrorCode enum for values.")]
+        public int SimulatedErrorCode = (int)AgeSignalsErrorCode.NetworkError;
 
         /// <summary>Computed lower bound based on status and age.</summary>
         public int AgeLower

@@ -13,7 +13,9 @@ import com.google.android.play.agesignals.AgeSignalsRequest;
 import com.google.android.play.agesignals.AgeSignalsResult;
 import com.google.android.play.agesignals.AgeSignalsException;
 import com.google.android.play.agesignals.model.AgeSignalsVerificationStatus;
-import com.google.android.play.agesignals.testing.FakeAgeSignalsManager;
+// NOTE: FakeAgeSignalsManager is loaded via reflection to avoid a hard dependency
+// on the testing artifact, which may be stripped from production AAR builds.
+// A static import would cause NoClassDefFoundError / VerifyError at class-load time.
 
 import com.unity3d.player.UnityPlayer;
 
@@ -105,22 +107,38 @@ public class AgeSignalsBridge {
             AgeSignalsManager manager;
 
             if (useFake) {
-                // Test mode: use Google's official FakeAgeSignalsManager
-                FakeAgeSignalsManager fakeManager = new FakeAgeSignalsManager();
+                // Test mode: use Google's official FakeAgeSignalsManager via reflection.
+                // The testing class may be stripped from the production AAR, so we load it
+                // dynamically to avoid NoClassDefFoundError at class-verification time.
+                try {
+                    Class<?> fakeClass = Class.forName(
+                            "com.google.android.play.agesignals.testing.FakeAgeSignalsManager");
+                    Object fakeInstance = fakeClass.getDeclaredConstructor().newInstance();
 
-                AgeSignalsResult.Builder builder = AgeSignalsResult.builder();
-                int status = parseVerificationStatus(fakeStatus);
-                if (status >= 0) {
-                    builder.setUserStatus(status);
+                    // Build the fake result
+                    AgeSignalsResult.Builder builder = AgeSignalsResult.builder();
+                    int status = parseVerificationStatus(fakeStatus);
+                    if (status >= 0) {
+                        builder.setUserStatus(status);
+                    }
+                    if (fakeAgeLower >= 0) builder.setAgeLower(fakeAgeLower);
+                    if (fakeAgeUpper >= 0) builder.setAgeUpper(fakeAgeUpper);
+
+                    // fakeManager.setNextAgeSignalsResult(result)
+                    java.lang.reflect.Method setResult = fakeClass.getMethod(
+                            "setNextAgeSignalsResult", AgeSignalsResult.class);
+                    setResult.invoke(fakeInstance, builder.build());
+
+                    manager = (AgeSignalsManager) fakeInstance;
+
+                    Log.d(TAG, "Using FakeAgeSignalsManager (reflection): status=" + fakeStatus
+                            + " age=[" + fakeAgeLower + "-" + fakeAgeUpper + "]");
+                } catch (Exception e) {
+                    Log.e(TAG, "FakeAgeSignalsManager not available (testing artifact may be stripped)", e);
+                    sendError(gameObjectName, errorMethod, -100,
+                            "FakeAgeSignalsManager not available: " + e.getMessage());
+                    return;
                 }
-                if (fakeAgeLower >= 0) builder.setAgeLower(fakeAgeLower);
-                if (fakeAgeUpper >= 0) builder.setAgeUpper(fakeAgeUpper);
-
-                fakeManager.setNextAgeSignalsResult(builder.build());
-                manager = fakeManager;
-
-                Log.d(TAG, "Using FakeAgeSignalsManager: status=" + fakeStatus
-                        + " age=[" + fakeAgeLower + "-" + fakeAgeUpper + "]");
             } else {
                 manager = AgeSignalsManagerFactory.create(activity);
             }
@@ -131,6 +149,7 @@ public class AgeSignalsBridge {
                         JSONObject json = new JSONObject();
 
                         // userStatus — explicit mapping for forward compatibility
+                        // (avoids depending on enum.toString() behavior)
                         json.put("userStatus",
                             result.userStatus() != null
                                 ? mapUserStatus(result.userStatus())
@@ -175,11 +194,26 @@ public class AgeSignalsBridge {
                     sendError(gameObjectName, errorMethod, errorCode, errorMessage);
                 });
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // Catches both Exception and Error (e.g., NoClassDefFoundError
+            // when the Google Play SDK is not bundled via EDM4U).
             Log.e(TAG, "Failed to create AgeSignalsManager", e);
             sendError(gameObjectName, errorMethod, -100,
                 "Manager creation failed: " + e.getMessage());
         }
+    }
+
+    // =================================================================
+    // LIFECYCLE
+    // =================================================================
+
+    /**
+     * Called from Unity's OnDestroy to release any held references.
+     * Currently a no-op since the bridge is stateless, but provided
+     * as a stable API for future resource cleanup.
+     */
+    public static void cleanup() {
+        Log.d(TAG, "cleanup() called");
     }
 
     // =================================================================

@@ -141,13 +141,5 @@ namespace BizSim.GPlay.AgeSignals.Tests
             Assert.AreEqual(1, flags.Features.Count); // no duplicate
         }
 
-        [Test]
-        public void DeprecatedFields_StillWork()
-        {
-#pragma warning disable CS0618
-            var flags = new AgeRestrictionFlags { FeatureAEnabled = true };
-            Assert.IsTrue(flags.FeatureAEnabled);
-#pragma warning restore CS0618
-        }
     }
 }

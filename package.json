@@ -2,15 +2,20 @@
   "name": "com.bizsim.gplay.agesignals",
   "displayName": "Google Play Age Signals Bridge",
   "description": "Unity bridge for Google Play Age Signals API (v0.0.2 Beta). Provides Java-to-C# integration with policy-compliant age restriction flags.",
-  "version": "0.1.1",
+  "version": "0.1.0",
   "unity": "6000.3",
-  "unityRelease": "5f2",
   "changelogUrl": "https://github.com/BizSim-Game-Studios/com.bizsim.gplay.agesignals/blob/main/CHANGELOG.md",
   "documentationUrl": "https://github.com/BizSim-Game-Studios/com.bizsim.gplay.agesignals/blob/main/README.md",
   "author": {
-    "name": "Aşkın Ceyhan",
-    "url": "https://github.com/AskinCeyhan"
+    "name": "BizSim Game Studios",
+    "url": "https://github.com/BizSim-Game-Studios"
   },
+  "contributors": [
+    {
+      "name": "Aşkın Ceyhan",
+      "url": "https://github.com/AskinCeyhan"
+    }
+  ],
   "company": "BizSim Game Studios",
   "homepage": "https://www.bizsim.com",
   "license": "MIT",

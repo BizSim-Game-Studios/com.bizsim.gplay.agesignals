@@ -7,6 +7,7 @@ using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace BizSim.GPlay.AgeSignals
 {
@@ -31,10 +32,46 @@ namespace BizSim.GPlay.AgeSignals
     /// </code>
     /// </summary>
     [HelpURL("https://github.com/BizSim-Game-Studios/com.bizsim.gplay.agesignals#quick-start-tutorial")]
-    [AddComponentMenu("BizSim/Age Signals Controller")]
+    [AddComponentMenu("BizSim/Age Signals/Age Signals Controller")]
     public class AgeSignalsController : MonoBehaviour, IAgeSignalsProvider
     {
-        public static AgeSignalsController Instance { get; private set; }
+        /// <summary>
+        /// Lazy singleton. If no instance exists in the scene, one is automatically
+        /// created on a new GameObject marked with <c>DontDestroyOnLoad</c>.
+        /// </summary>
+        public static AgeSignalsController Instance
+        {
+            get
+            {
+                if (_applicationIsQuitting)
+                    return null;
+
+                if (!Application.isPlaying)
+                    return null;
+
+                if (_instance == null)
+                {
+                    _instance = FindFirstObjectByType<AgeSignalsController>();
+                    if (_instance == null)
+                    {
+                        var go = new GameObject("AgeSignalsController");
+                        _instance = go.AddComponent<AgeSignalsController>();
+                        DontDestroyOnLoad(go);
+                    }
+                }
+                return _instance;
+            }
+            private set => _instance = value;
+        }
+        private static AgeSignalsController _instance;
+        private static bool _applicationIsQuitting = false;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            _applicationIsQuitting = false;
+            _instance = null;
+        }
 
         // --- Events ---
 
@@ -56,8 +93,6 @@ namespace BizSim.GPlay.AgeSignals
         public bool IsChecking { get; private set; }
 
         // --- Configuration ---
-        /// <summary>PlayerPrefs key used to persist restriction flags between sessions.</summary>
-        public const string FLAGS_PREFS_KEY = "AgeRestriction_Flags";
         private const int MAX_RETRIES = 3;
         private const float RETRY_BASE_DELAY = 2f; // seconds
 
@@ -69,6 +104,7 @@ namespace BizSim.GPlay.AgeSignals
         private const int FLAGS_MAX_AGE_HOURS = 24;
 
         private int _retryCount;
+        private CancellationTokenSource _destroyCts;
 
         // --- Decision Logic ---
 
@@ -107,28 +143,118 @@ namespace BizSim.GPlay.AgeSignals
         [Range(5, 25)]
         [SerializeField] private int _fakeAge = 14;
 
+        [Header("Cache")]
+        [Tooltip("Use AES-256 encrypted PlayerPrefs cache instead of plain JSON.")]
+        [SerializeField] private bool _useEncryptedCache = false;
+
+        [Header("Logging")]
+        [Tooltip("Minimum log level. Silent suppresses all output including errors.")]
+        [SerializeField] private LogLevel _logLevel = LogLevel.Verbose;
+
+        private IAgeSignalsCacheProvider _cacheProvider;
+        private IAgeSignalsAnalyticsAdapter _analyticsAdapter;
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         private AndroidJavaClass _bridgeClass;
 #endif
 
         private void Awake()
         {
-            if (Instance != null && Instance != this)
+            if (_instance != null && _instance != this)
             {
-                Destroy(gameObject);
+                // Destroy only this component, not the entire GameObject
+                // (this component may be added to another singleton's GameObject)
+                Destroy(this);
                 return;
             }
             Instance = this;
+            _destroyCts = new CancellationTokenSource();
+            BizSimLogger.MinLevel = _logLevel;
+
+            if (_cacheProvider == null)
+            {
+                _cacheProvider = _useEncryptedCache
+                    ? new EncryptedPlayerPrefsCacheProvider()
+                    : new PlayerPrefsCacheProvider();
+            }
+
             LoadRestrictionFlags(); // Load previous session flags as fallback
+        }
+
+        private void OnApplicationQuit()
+        {
+            _applicationIsQuitting = true;
         }
 
         private void OnDestroy()
         {
+            _destroyCts?.Cancel();
+            _destroyCts?.Dispose();
+            _destroyCts = null;
+
+            StopAllCoroutines();
+            IsChecking = false;
+
+            // Null out all event delegates to release subscriber references.
+            // Prevents memory leaks when external objects subscribed via +=
+            // but forgot to -= before the controller was destroyed.
+            OnRestrictionsUpdated = null;
+            OnError = null;
+
+            // Release injected adapters so GC can collect them independently.
+            _analyticsAdapter = null;
+            _cacheProvider = null;
+
             if (Instance == this) Instance = null;
 #if UNITY_ANDROID && !UNITY_EDITOR
+            // Clean up Java bridge state (static fields survive Domain Reload in Editor)
+            try { _bridgeClass?.CallStatic("cleanup"); }
+            catch { /* best-effort — JNI may fail during Force Stop or shutdown */ }
+
             _bridgeClass?.Dispose();
             _bridgeClass = null;
 #endif
+        }
+
+        // =================================================================
+        // Public Configuration API
+        // =================================================================
+
+        /// <summary>Sets the minimum log level at runtime. Overrides the Inspector value.</summary>
+        public void SetLogLevel(LogLevel level)
+        {
+            _logLevel = level;
+            BizSimLogger.MinLevel = level;
+        }
+
+        /// <summary>
+        /// Replaces the cache provider used for persisting restriction flags.
+        /// Must be called before <see cref="CheckAgeSignals"/> or during initialization.
+        /// </summary>
+        /// <param name="provider">Custom cache provider implementation.</param>
+        public void SetCacheProvider(IAgeSignalsCacheProvider provider)
+        {
+            _cacheProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+        }
+
+        /// <summary>
+        /// Clears cached restriction flags. Useful for GDPR right-to-erasure compliance
+        /// or when the user logs out.
+        /// </summary>
+        public void ClearCachedData()
+        {
+            _cacheProvider?.Clear();
+            BizSimLogger.Info("Cached flags cleared");
+        }
+
+        /// <summary>
+        /// Sets a custom analytics adapter for logging age signals events.
+        /// Replaces the default logger-only behavior.
+        /// </summary>
+        /// <param name="adapter">Custom analytics adapter implementation.</param>
+        public void SetAnalyticsAdapter(IAgeSignalsAnalyticsAdapter adapter)
+        {
+            _analyticsAdapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
         }
 
         // =================================================================
@@ -200,18 +326,23 @@ namespace BizSim.GPlay.AgeSignals
 
             // If CheckAgeSignals() resolved synchronously (e.g., Editor mock),
             // the TCS is already completed before we reach the timeout check.
+            var destroyToken = _destroyCts?.Token ?? CancellationToken.None;
+
             var completedTask = await Task.WhenAny(
                 tcs.Task,
-                Task.Delay(TimeSpan.FromSeconds(timeoutSeconds))
+                Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), destroyToken)
             );
 
             if (completedTask != tcs.Task)
             {
-                // Timeout — clean up dangling subscriptions
+                // Timeout or destroy — clean up dangling subscriptions
                 Cleanup();
-                tcs.TrySetException(new TimeoutException(
-                    $"[AgeSignals] No callback received within {timeoutSeconds}s. " +
-                    "The JNI bridge may have failed silently."));
+                if (destroyToken.IsCancellationRequested)
+                    tcs.TrySetCanceled(destroyToken);
+                else
+                    tcs.TrySetException(new TimeoutException(
+                        $"[AgeSignals] No callback received within {timeoutSeconds}s. " +
+                        "The JNI bridge may have failed silently."));
             }
 
             return await tcs.Task;
@@ -221,6 +352,13 @@ namespace BizSim.GPlay.AgeSignals
         public async Task<AgeRestrictionFlags> CheckAgeSignalsAsync(CancellationToken cancellationToken, float timeoutSeconds = 30f)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // Link caller token + destroy token so either can cancel.
+            // Prevents zombie Task.Delay if MonoBehaviour is destroyed but caller doesn't cancel.
+            using var linkedCts = _destroyCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _destroyCts.Token)
+                : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var linkedToken = linkedCts.Token;
 
             var tcs = new TaskCompletionSource<AgeRestrictionFlags>();
 
@@ -246,10 +384,12 @@ namespace BizSim.GPlay.AgeSignals
             };
 
             // Register cancellation callback (after Cleanup is defined)
-            using var registration = cancellationToken.Register(() =>
+            using var registration = linkedToken.Register(() =>
             {
                 Cleanup();
-                tcs.TrySetCanceled(cancellationToken);
+                tcs.TrySetCanceled(cancellationToken.IsCancellationRequested
+                    ? cancellationToken
+                    : linkedToken);
             });
 
             OnRestrictionsUpdated += onSuccess;
@@ -259,14 +399,20 @@ namespace BizSim.GPlay.AgeSignals
 
             var completedTask = await Task.WhenAny(
                 tcs.Task,
-                Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), cancellationToken)
+                Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), linkedToken)
             );
 
             if (completedTask != tcs.Task)
             {
                 Cleanup();
-                if (cancellationToken.IsCancellationRequested)
-                    throw new OperationCanceledException(cancellationToken);
+
+                if (linkedToken.IsCancellationRequested)
+                {
+                    BizSimLogger.Info("Check cancelled via CancellationToken or MonoBehaviour destroyed");
+                    throw new OperationCanceledException(cancellationToken.IsCancellationRequested
+                        ? cancellationToken
+                        : linkedToken);
+                }
 
                 tcs.TrySetException(new TimeoutException(
                     $"[AgeSignals] No callback received within {timeoutSeconds}s."));
@@ -318,7 +464,7 @@ namespace BizSim.GPlay.AgeSignals
                 IsChecking = false;
                 OnError?.Invoke(new AgeSignalsError
                 {
-                    errorCode = -100,
+                    errorCode = (int)AgeSignalsErrorCode.InternalError,
                     errorMessage = $"JNI call failed: {e.Message}",
                     isRetryable = false
                 });
@@ -368,9 +514,10 @@ namespace BizSim.GPlay.AgeSignals
                     {
                         errorCode = _mockConfig.SimulatedErrorCode,
                         errorMessage = $"Simulated error (mock config)",
-                        isRetryable = _mockConfig.SimulatedErrorCode >= -8 && _mockConfig.SimulatedErrorCode <= -1
+                        isRetryable = AgeSignalsError.IsRetryableCode(_mockConfig.SimulatedErrorCode)
                     };
                     LogApiCallResult(false);
+                    _analyticsAdapter?.LogError(error);
                     OnError?.Invoke(error);
                     return;
                 }
@@ -412,6 +559,7 @@ namespace BizSim.GPlay.AgeSignals
         /// Called by the Java bridge when the API returns a successful result.
         /// Parses the JSON payload into <see cref="AgeSignalsResult"/> and processes it.
         /// </summary>
+        [Preserve]
         private void OnAgeSignalsResult(string json)
         {
             IsChecking = false;
@@ -439,7 +587,7 @@ namespace BizSim.GPlay.AgeSignals
                 BizSimLogger.Error($"Failed to parse result: {e.Message}\nJSON: {json}");
                 OnError?.Invoke(new AgeSignalsError
                 {
-                    errorCode = -100,
+                    errorCode = (int)AgeSignalsErrorCode.InternalError,
                     errorMessage = $"Parse error: {e.Message}",
                     isRetryable = false
                 });
@@ -458,6 +606,7 @@ namespace BizSim.GPlay.AgeSignals
             SaveRestrictionFlags(flags);
 
             LogApiCallResult(true);
+            _analyticsAdapter?.LogRestrictionsUpdated(flags);
 
             OnRestrictionsUpdated?.Invoke(flags);
         }
@@ -466,6 +615,7 @@ namespace BizSim.GPlay.AgeSignals
         /// Called by the Java bridge when the API returns an error.
         /// Handles automatic retry with exponential backoff for transient errors.
         /// </summary>
+        [Preserve]
         private void OnAgeSignalsError(string json)
         {
             IsChecking = false;
@@ -474,11 +624,14 @@ namespace BizSim.GPlay.AgeSignals
             {
                 var error = JsonUtility.FromJson<AgeSignalsError>(json);
 
-                BizSimLogger.Warning($"Error: {error.ErrorCodeName} ({error.errorCode})" +
+                BizSimLogger.Error($"Error: {error.ErrorCodeName} ({error.errorCode})" +
                                  $" — {error.errorMessage} — retryable={error.isRetryable}");
 
                 // Automatic retry with exponential backoff for transient errors
-                if (error.isRetryable && _retryCount < MAX_RETRIES)
+                // Skip retry for ApiNotAvailable — API absence is permanent on device
+                if (error.isRetryable
+                    && error.ErrorCodeEnum != AgeSignalsErrorCode.ApiNotAvailable
+                    && _retryCount < MAX_RETRIES)
                 {
                     _retryCount++;
                     float delay = RETRY_BASE_DELAY * Mathf.Pow(2, _retryCount - 1);
@@ -488,6 +641,7 @@ namespace BizSim.GPlay.AgeSignals
                 }
 
                 LogApiCallResult(false);
+                _analyticsAdapter?.LogError(error);
 
                 // Fall back to previous session flags if available
                 if (CurrentFlags != null)
@@ -507,6 +661,8 @@ namespace BizSim.GPlay.AgeSignals
         private IEnumerator RetryAfterDelay(float seconds)
         {
             yield return new WaitForSeconds(seconds);
+            if (this == null || _destroyCts == null || _destroyCts.IsCancellationRequested)
+                yield break;
             ExecuteCheck();
         }
 
@@ -516,131 +672,71 @@ namespace BizSim.GPlay.AgeSignals
 
         /// <summary>
         /// Converts raw age signal data into application-level restriction flags.
-        /// This is the single point where age data is translated into behavior decisions.
-        ///
-        /// Default thresholds:
-        /// <list type="bullet">
-        /// <item><b>FeatureA</b> — 18+ only (e.g., gambling, casino)</item>
-        /// <item><b>FeatureB</b> — 16+ full access (e.g., marketplace, trading)</item>
-        /// <item><b>FeatureC</b> — 13+ access (e.g., chat, social features)</item>
-        /// <item><b>PersonalizedAds</b> — 13+ (COPPA compliance)</item>
-        /// </list>
+        /// Delegates entirely to <see cref="AgeSignalsDecisionLogic.ComputeFlags"/>.
+        /// If no custom logic is assigned, a default instance with standard thresholds is used.
         /// </summary>
         private AgeRestrictionFlags MakeRestrictionDecisions(AgeSignalsResult result)
         {
             var flags = new AgeRestrictionFlags();
-
-            if (_decisionLogic != null)
-            {
-                _decisionLogic.ComputeFlags(result, flags);
-            }
-            else
-            {
-                // Built-in defaults — same as AgeSignalsDecisionLogic base with default features
-                bool noData = !result.HasAgeData;
-                flags.AccessDenied = result.IsAccessDenied;
-
-                if (flags.AccessDenied)
-                {
-                    flags.FullAccessGranted = false;
-                    flags.PersonalizedAdsEnabled = false;
-                    flags.NeedsVerification = false;
-                    flags.SetFeature(AgeFeatureKeys.Gambling, false);
-                    flags.SetFeature(AgeFeatureKeys.Marketplace, false);
-                    flags.SetFeature(AgeFeatureKeys.Chat, false);
-                }
-                else
-                {
-                    flags.FullAccessGranted = noData || result.IsAdult;
-                    flags.SetFeature(AgeFeatureKeys.Gambling, noData || result.IsAdult);
-                    flags.SetFeature(AgeFeatureKeys.Marketplace, noData || result.IsAdult || !result.IsUnder(16));
-                    flags.SetFeature(AgeFeatureKeys.Chat, noData || !result.IsUnder(13));
-                    flags.PersonalizedAdsEnabled = noData || !result.IsUnder(13);
-                    flags.NeedsVerification = result.UserStatus == AgeVerificationStatus.Unknown;
-                }
-
-                // Sync deprecated fields
-#pragma warning disable CS0618
-                flags.FeatureAEnabled = flags.IsFeatureEnabled(AgeFeatureKeys.Gambling);
-                flags.FeatureBFullAccess = flags.IsFeatureEnabled(AgeFeatureKeys.Marketplace);
-                flags.FeatureCEnabled = flags.IsFeatureEnabled(AgeFeatureKeys.Chat);
-#pragma warning restore CS0618
-            }
-
-            flags.DecisionTimestamp = DateTime.UtcNow.ToString("o");
+            EnsureDecisionLogic();
+            _decisionLogic.ComputeFlags(result, flags);
+            AgeSignalsCacheLogic.StampFlags(flags, _decisionLogic.ComputeConfigHash(), PackageVersion.Current);
             return flags;
         }
 
+        /// <summary>
+        /// Lazily creates a default <see cref="AgeSignalsDecisionLogic"/> instance
+        /// when none is assigned via the Inspector. Uses default thresholds:
+        /// gambling 18+, marketplace 16+, chat 13+, personalized ads 13+.
+        /// </summary>
+        private void EnsureDecisionLogic()
+        {
+            if (_decisionLogic != null) return;
+            _decisionLogic = ScriptableObject.CreateInstance<AgeSignalsDecisionLogic>();
+            _decisionLogic.hideFlags = HideFlags.HideAndDontSave;
+        }
+
         // =================================================================
-        // Flag Persistence (PlayerPrefs) — with TTL expiration
+        // Flag Persistence — via IAgeSignalsCacheProvider + TTL expiration
         // =================================================================
 
         private void SaveRestrictionFlags(AgeRestrictionFlags flags)
         {
-            PlayerPrefs.SetString(FLAGS_PREFS_KEY, JsonUtility.ToJson(flags));
-            PlayerPrefs.Save();
+            _cacheProvider.Save(flags);
         }
 
         /// <summary>
         /// Loads restriction flags from the previous session as fallback.
-        /// If no saved flags exist or they are older than <see cref="FLAGS_MAX_AGE_HOURS"/>,
+        /// If no valid cache exists or it is older than <see cref="FLAGS_MAX_AGE_HOURS"/>,
         /// defaults to full access (adult assumption) to avoid restricting users
         /// before the API responds.
         /// </summary>
         private void LoadRestrictionFlags()
         {
-            string json = PlayerPrefs.GetString(FLAGS_PREFS_KEY, "");
-            if (!string.IsNullOrEmpty(json))
+            var loaded = _cacheProvider.Load();
+
+            if (loaded != null)
             {
-                try
-                {
-                    var loaded = JsonUtility.FromJson<AgeRestrictionFlags>(json);
+                EnsureDecisionLogic();
+                string configHash = _decisionLogic.ComputeConfigHash();
 
-                    // Expire stale flags to comply with Google's policy against
-                    // long-term storage of age-signal-derived data.
-                    if (!string.IsNullOrEmpty(loaded.DecisionTimestamp) &&
-                        DateTime.TryParse(loaded.DecisionTimestamp, null,
-                            System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
-                    {
-                        double ageHours = (DateTime.UtcNow - dt).TotalHours;
-                        if (ageHours <= FLAGS_MAX_AGE_HOURS)
-                        {
-                            CurrentFlags = loaded;
-                            BizSimLogger.Info($"Loaded cached flags ({ageHours:F1}h old)");
-                            return;
-                        }
-
-                        BizSimLogger.Info($"Cached flags expired ({ageHours:F1}h > {FLAGS_MAX_AGE_HOURS}h), using defaults");
-                        PlayerPrefs.DeleteKey(FLAGS_PREFS_KEY);
-                    }
-                    else
-                    {
-                        // No valid timestamp — treat as expired
-                        PlayerPrefs.DeleteKey(FLAGS_PREFS_KEY);
-                    }
-                }
-                catch (Exception e)
+                if (AgeSignalsCacheLogic.IsCacheValid(loaded, FLAGS_MAX_AGE_HOURS, configHash, PackageVersion.Current))
                 {
-                    BizSimLogger.Warning($"Failed to load cached flags: {e.Message}");
-                    PlayerPrefs.DeleteKey(FLAGS_PREFS_KEY);
+                    CurrentFlags = loaded;
+                    double ageHours = AgeSignalsCacheLogic.GetCacheAgeHours(loaded);
+                    BizSimLogger.Info($"Loaded cached flags ({ageHours:F1}h old)");
+                    return;
                 }
+
+                double expiredAge = AgeSignalsCacheLogic.GetCacheAgeHours(loaded);
+                BizSimLogger.Info(expiredAge >= 0
+                    ? $"Cached flags expired ({expiredAge:F1}h > {FLAGS_MAX_AGE_HOURS}h), using defaults"
+                    : "Cached flags have invalid timestamp, using defaults");
+                _cacheProvider.Clear();
             }
 
-            // Default: assume adult until API says otherwise
-            CurrentFlags = new AgeRestrictionFlags
-            {
-                FullAccessGranted = true,
-                PersonalizedAdsEnabled = true,
-                DecisionTimestamp = DateTime.UtcNow.ToString("o")
-            };
-            CurrentFlags.SetFeature(AgeFeatureKeys.Gambling, true);
-            CurrentFlags.SetFeature(AgeFeatureKeys.Marketplace, true);
-            CurrentFlags.SetFeature(AgeFeatureKeys.Chat, true);
-#pragma warning disable CS0618
-            CurrentFlags.FeatureAEnabled = true;
-            CurrentFlags.FeatureBFullAccess = true;
-            CurrentFlags.FeatureCEnabled = true;
-#pragma warning restore CS0618
+            // Default: restrictive (fail-safe) until API confirms age
+            CurrentFlags = AgeSignalsCacheLogic.CreateDefaultFlags();
         }
 
         // =================================================================
@@ -648,28 +744,19 @@ namespace BizSim.GPlay.AgeSignals
         // =================================================================
 
         /// <summary>
-        /// Logs a binary success/error event. Uses Firebase Analytics when the
-        /// <c>AGESIGNALS_FIREBASE</c> define is set; otherwise falls back to
-        /// <see cref="Debug.Log"/> so API call success rates are always observable.
+        /// Logs a binary success/error event via the pluggable analytics adapter.
+        /// Falls back to <see cref="BizSimLogger"/> when no adapter is assigned.
         /// </summary>
         private void LogApiCallResult(bool success)
         {
-            string result = success ? "success" : "error";
-
-#if AGESIGNALS_FIREBASE && !UNITY_EDITOR
-            try
+            if (_analyticsAdapter != null)
             {
-                Firebase.Analytics.FirebaseAnalytics.LogEvent("age_signals_api_call",
-                    new Firebase.Analytics.Parameter("result", result)
-                );
+                _analyticsAdapter.LogApiCallResult(success);
             }
-            catch (Exception e)
+            else
             {
-                BizSimLogger.Warning($"Analytics log failed: {e.Message}");
+                BizSimLogger.Info($"API call result: {(success ? "success" : "error")}");
             }
-#else
-            BizSimLogger.Info($"API call result: {result}");
-#endif
         }
 
         // =================================================================

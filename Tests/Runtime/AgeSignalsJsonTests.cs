@@ -180,11 +180,6 @@ namespace BizSim.GPlay.AgeSignals.Tests
                 NeedsVerification = true,
                 DecisionTimestamp = "2026-01-30T12:00:00.0000000Z"
             };
-#pragma warning disable CS0618
-            original.FeatureAEnabled = false;
-            original.FeatureBFullAccess = true;
-            original.FeatureCEnabled = true;
-#pragma warning restore CS0618
             original.SetFeature(AgeFeatureKeys.Gambling, false);
             original.SetFeature(AgeFeatureKeys.Marketplace, true);
             original.SetFeature(AgeFeatureKeys.Chat, true);
@@ -208,13 +203,10 @@ namespace BizSim.GPlay.AgeSignals.Tests
         [Test]
         public void RestrictionFlags_EmptyFeatures_DeserializesGracefully()
         {
-            // Simulates old PlayerPrefs JSON without Features field
+            // JSON without Features field — simulates minimal cached data
             const string json = @"{
                 ""FullAccessGranted"": true,
                 ""AccessDenied"": false,
-                ""FeatureAEnabled"": true,
-                ""FeatureBFullAccess"": true,
-                ""FeatureCEnabled"": true,
                 ""PersonalizedAdsEnabled"": true,
                 ""NeedsVerification"": false,
                 ""DecisionTimestamp"": ""2026-01-30T12:00:00Z""

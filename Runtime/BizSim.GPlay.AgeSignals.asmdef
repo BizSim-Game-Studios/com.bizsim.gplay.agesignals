@@ -1,9 +1,7 @@
 {
   "name": "BizSim.GPlay.AgeSignals",
   "rootNamespace": "BizSim.GPlay.AgeSignals",
-  "references": [
-    "Unity.InputSystem"
-  ],
+  "references": [],
   "includePlatforms": ["Android", "Editor"],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
@@ -15,12 +13,7 @@
     {
       "name": "com.google.firebase.analytics",
       "expression": "",
-      "define": "AGESIGNALS_FIREBASE"
-    },
-    {
-      "name": "com.unity.inputsystem",
-      "expression": "",
-      "define": "ENABLE_INPUT_SYSTEM"
+      "define": "BIZSIM_FIREBASE"
     }
   ],
   "noEngineReferences": false
