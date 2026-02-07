@@ -1,6 +1,3 @@
-# Unity meta files — these belong to the consuming project, not the package repo
-*.meta
-
 # OS files
 .DS_Store
 Thumbs.db
