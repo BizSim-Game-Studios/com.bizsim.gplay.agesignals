@@ -10,7 +10,7 @@
 **Version:** 0.1.0 (Initial Release)
 **Namespace:** `BizSim.GPlay.AgeSignals`
 **Author:** BizSim Game Studios ([bizsim.com](https://www.bizsim.com))
-**License:** MIT
+**License:** MIT (package code) — see [Third-Party Licenses](#third-party-licenses) for SDK terms
 
 ## Table of Contents
 
@@ -21,6 +21,7 @@
 - [Dependency Injection Support](#dependency-injection-support)
 - [API Reference](#api-reference)
 - [Data Safety & Privacy](#data-safety--privacy)
+- [Third-Party Licenses](#third-party-licenses)
 - [Requirements](#requirements)
 
 ## Overview
@@ -289,6 +290,24 @@ This package is designed with privacy compliance in mind:
 For detailed data safety declarations (Google Play Console form), see:
 - [`Documentation~/DATA_SAFETY.md`](Documentation~/DATA_SAFETY.md)
 - [`Documentation~/PRIVACY_MANIFEST.xml`](Documentation~/PRIVACY_MANIFEST.xml)
+
+## Third-Party Licenses
+
+This package's C# and Java source code is licensed under the [MIT License](LICENSE.md).
+
+This package does **not** bundle any Google SDK binaries. The native Android dependency is resolved at build time by [EDM4U](https://github.com/googlesamples/unity-jar-resolver) from the Google Maven repository (`maven.google.com`):
+
+| Dependency | Version | License |
+|-----------|---------|---------|
+| `com.google.android.play:age-signals` | 0.0.2 (Beta) | [Play Core SDK Terms of Service](https://developer.android.com/guide/playcore/license) |
+
+By installing and using this package, you agree to the [Play Core SDK Terms of Service](https://developer.android.com/guide/playcore/license) and the [Google APIs Terms of Service](https://developers.google.com/terms).
+
+For full third-party license details, see [NOTICES.md](NOTICES.md).
+
+### Open Source Notices in Your App
+
+Google requires that apps using Google Play libraries display open source notices to end users. See [Include open source notices](https://developers.google.com/android/guides/opensource) for instructions on using the `oss-licenses-plugin` Gradle plugin.
 
 ## Requirements
 
