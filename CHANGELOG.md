@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-02-09
+
+### Fixed
+- Fixed `changelogUrl` and `documentationUrl` in `package.json` to use correct branch name (`master`)
+
+### Added
+- `.gitattributes` for consistent line endings across platforms
+
+---
+
 ## [0.1.0] - 2026-01-30
 
 Initial release with full Age Signals API bridge, dynamic feature system, and Editor tooling.
