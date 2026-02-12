@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-02-12
+
+### Changed
+- Downgrade `OnAgeSignalsError` log level from `Error` to `Info` for expected API unavailability scenarios (reduces Crashlytics noise)
+
 ## [0.1.1] - 2026-02-09
 
 ### Fixed

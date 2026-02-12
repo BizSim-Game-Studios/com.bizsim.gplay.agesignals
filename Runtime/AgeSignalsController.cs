@@ -624,8 +624,8 @@ namespace BizSim.GPlay.AgeSignals
             {
                 var error = JsonUtility.FromJson<AgeSignalsError>(json);
 
-                BizSimLogger.Error($"Error: {error.ErrorCodeName} ({error.errorCode})" +
-                                 $" — {error.errorMessage} — retryable={error.isRetryable}");
+                BizSimLogger.Info($"Error: {error.ErrorCodeName} ({error.errorCode})" +
+                                $" — {error.errorMessage} — retryable={error.isRetryable}");
 
                 // Automatic retry with exponential backoff for transient errors
                 // Skip retry for ApiNotAvailable — API absence is permanent on device
