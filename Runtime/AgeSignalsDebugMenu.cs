@@ -135,9 +135,8 @@ namespace BizSim.GPlay.AgeSignals
 
             if (GUILayout.Button("Clear Cached Flags", GUILayout.Height(35)))
             {
-                PlayerPrefs.DeleteKey("AgeRestrictionFlags");
-                PlayerPrefs.Save();
-                Debug.Log("[Debug] Cleared cached flags from PlayerPrefs");
+                AgeSignalsController.Instance.ClearCachedData();
+                Debug.Log("[Debug] Cleared cached flags via ClearCachedData()");
             }
 
             GUILayout.Space(10);

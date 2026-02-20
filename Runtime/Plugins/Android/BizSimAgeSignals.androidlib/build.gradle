@@ -1,15 +1,12 @@
 apply plugin: 'com.android.library'
 
 dependencies {
-    implementation fileTree(dir: 'bin', include: ['*.jar'])
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.google.android.play:age-signals:0.0.2'
 }
 
 android {
     namespace "com.bizsim.gplay.agesignals"
     compileSdk 36
-    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         minSdk 25

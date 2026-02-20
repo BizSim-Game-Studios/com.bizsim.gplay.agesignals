@@ -15,6 +15,6 @@ namespace BizSim.GPlay.AgeSignals
     internal static class PackageVersion
     {
         /// <summary>Current package version — must match <c>package.json</c>.</summary>
-        public const string Current = "0.1.0";
+        public const string Current = "0.1.5";
     }
 }

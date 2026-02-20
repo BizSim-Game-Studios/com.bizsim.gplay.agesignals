@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-02-18
+
+### Changed
+- Removed redundant `package` attribute from `AndroidManifest.xml` (AGP 8+ uses `namespace` in build.gradle)
+- Removed all Javadoc comments and inline comments from `AgeSignalsBridge.java`
+
+## [0.1.4] - 2026-02-18
+
+### Fixed
+- Debug menu "Clear Cache" used wrong PlayerPrefs key (`AgeRestrictionFlags` instead of `AgeRestriction_Flags`) — replaced with `AgeSignalsController.Instance.ClearCachedData()` for cache-provider-agnostic behavior
+
+### Changed
+- Removed `fileTree(dir: 'bin')` and `buildToolsVersion` from build.gradle
+
+## [0.1.3] - 2026-02-17
+
+### Fixed
+- Sync `PackageVersion.Current` constant with `package.json` (was "0.1.0", now "0.1.3"). Fixes unnecessary cache invalidation on upgrade.
+
 ## [0.1.2] - 2026-02-12
 
 ### Changed
