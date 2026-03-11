@@ -631,6 +631,7 @@ namespace BizSim.GPlay.AgeSignals
                 // Skip retry for ApiNotAvailable — API absence is permanent on device
                 if (error.isRetryable
                     && error.ErrorCodeEnum != AgeSignalsErrorCode.ApiNotAvailable
+                    && error.ErrorCodeEnum != AgeSignalsErrorCode.SdkVersionOutdated
                     && _retryCount < MAX_RETRIES)
                 {
                     _retryCount++;
@@ -778,6 +779,7 @@ namespace BizSim.GPlay.AgeSignals
                 "SUPERVISED" => AgeVerificationStatus.Supervised,
                 "SUPERVISED_APPROVAL_PENDING" => AgeVerificationStatus.SupervisedApprovalPending,
                 "SUPERVISED_APPROVAL_DENIED" => AgeVerificationStatus.SupervisedApprovalDenied,
+                "DECLARED" => AgeVerificationStatus.Declared,
                 "UNKNOWN" => AgeVerificationStatus.Unknown,
                 _ => AgeVerificationStatus.NotApplicable
             };
@@ -793,6 +795,7 @@ namespace BizSim.GPlay.AgeSignals
             AgeVerificationStatus.Supervised => "SUPERVISED",
             AgeVerificationStatus.SupervisedApprovalPending => "SUPERVISED_APPROVAL_PENDING",
             AgeVerificationStatus.SupervisedApprovalDenied => "SUPERVISED_APPROVAL_DENIED",
+            AgeVerificationStatus.Declared => "DECLARED",
             AgeVerificationStatus.Unknown => "UNKNOWN",
             _ => "UNKNOWN"
         };
@@ -819,9 +822,15 @@ namespace BizSim.GPlay.AgeSignals
                 case AgeVerificationStatus.Supervised:
                 case AgeVerificationStatus.SupervisedApprovalPending:
                 case AgeVerificationStatus.SupervisedApprovalDenied:
-                    // Supervised accounts: simulate a ±2 year age bucket
                     lower = Mathf.Max(0, age - 2);
                     upper = age + 2;
+                    break;
+
+                case AgeVerificationStatus.Declared:
+                    if (age < 13) { lower = 0; upper = 12; }
+                    else if (age < 16) { lower = 13; upper = 15; }
+                    else if (age < 18) { lower = 16; upper = 17; }
+                    else { lower = 18; upper = 150; }
                     break;
 
                 default: // Unknown, NotApplicable

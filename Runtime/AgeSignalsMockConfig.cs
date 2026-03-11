@@ -47,6 +47,7 @@ namespace BizSim.GPlay.AgeSignals
                     AgeVerificationStatus.Supervised
                         or AgeVerificationStatus.SupervisedApprovalPending
                         or AgeVerificationStatus.SupervisedApprovalDenied => Mathf.Max(0, MockAge - 2),
+                    AgeVerificationStatus.Declared => MockAge < 13 ? 0 : MockAge < 16 ? 13 : MockAge < 18 ? 16 : 18,
                     _ => -1
                 };
             }
@@ -63,6 +64,7 @@ namespace BizSim.GPlay.AgeSignals
                     AgeVerificationStatus.Supervised
                         or AgeVerificationStatus.SupervisedApprovalPending
                         or AgeVerificationStatus.SupervisedApprovalDenied => MockAge + 2,
+                    AgeVerificationStatus.Declared => MockAge < 13 ? 12 : MockAge < 16 ? 15 : MockAge < 18 ? 17 : 150,
                     _ => -1
                 };
             }

@@ -18,6 +18,7 @@ import org.json.JSONObject;
 public class AgeSignalsBridge {
 
     private static final String TAG = "AgeSignalsBridge";
+    private static final int STATUS_DECLARED = 5;
 
     public static void checkAgeSignals(
             final String gameObjectName,
@@ -161,6 +162,8 @@ public class AgeSignalsBridge {
             return "SUPERVISED_APPROVAL_DENIED";
         if (status == AgeSignalsVerificationStatus.UNKNOWN)
             return "UNKNOWN";
+        if (status == STATUS_DECLARED)
+            return "DECLARED";
 
         Log.w(TAG, "Unknown userStatus: " + status);
         return String.valueOf(status); // Forward-compatible: pass through unknown values
@@ -179,6 +182,8 @@ public class AgeSignalsBridge {
                 return AgeSignalsVerificationStatus.SUPERVISED_APPROVAL_DENIED;
             case "UNKNOWN":
                 return AgeSignalsVerificationStatus.UNKNOWN;
+            case "DECLARED":
+                return STATUS_DECLARED;
             default:
                 return -1;
         }
@@ -198,6 +203,6 @@ public class AgeSignalsBridge {
     }
 
     private static boolean isRetryable(int errorCode) {
-        return errorCode >= -8 && errorCode <= -1;
+        return errorCode >= -8 && errorCode <= -1; // -9 (AppNotOwned) and -10 (SdkVersionOutdated) are not retryable
     }
 }

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-03-10
+
+### Added
+- `Declared` status in `AgeVerificationStatus` enum (Brazil Digital ECA compliance)
+- `IsDeclared` property on `AgeSignalsResult`
+- `SdkVersionOutdated` (-10) error code in `AgeSignalsErrorCode` enum
+- DECLARED mapping in Java bridge (`mapUserStatus` / `parseVerificationStatus`)
+- DECLARED age range buckets in mock config and fake manager (0-12, 13-15, 16-17, 18+)
+- DECLARED users with age range in decision logic (feature gating uses age thresholds)
+- `NeedsVerification` flag now also true for DECLARED status (declared ≠ verified)
+
+### Changed
+- Upgraded native Age Signals SDK dependency from v0.0.2 to v0.0.3
+- `SdkVersionOutdated` error is not retried (permanent, requires SDK update)
+- `FullAccessGranted` now true for DECLARED users aged 18+
+
 ## [0.1.5] - 2026-02-18
 
 ### Changed

@@ -96,6 +96,9 @@ namespace BizSim.GPlay.AgeSignals
         /// <summary>App not owned — user did not install via Play Store (-9). Not retryable.</summary>
         AppNotOwned = -9,
 
+        /// <summary>SDK version outdated — update the Age Signals dependency (-10). Not retryable.</summary>
+        SdkVersionOutdated = -10,
+
         /// <summary>Internal bridge error — JNI call failed, serialization error, etc. (-100).</summary>
         InternalError = -100
     }
@@ -117,6 +120,9 @@ namespace BizSim.GPlay.AgeSignals
 
         /// <summary>Supervised account where parental approval was denied — access should be blocked.</summary>
         SupervisedApprovalDenied,
+
+        /// <summary>Age declared by the user or parent (Brazil Digital ECA). Has age range but no installId.</summary>
+        Declared,
 
         /// <summary>User is in a supported jurisdiction but has not been verified or supervised.</summary>
         Unknown,
@@ -152,6 +158,9 @@ namespace BizSim.GPlay.AgeSignals
             UserStatus == AgeVerificationStatus.Supervised ||
             UserStatus == AgeVerificationStatus.SupervisedApprovalPending ||
             UserStatus == AgeVerificationStatus.SupervisedApprovalDenied;
+
+        /// <summary>Whether the user's age was declared by the user or parent (Brazil Digital ECA).</summary>
+        public bool IsDeclared => UserStatus == AgeVerificationStatus.Declared;
 
         /// <summary>
         /// Whether the user's entire age range falls below the given age.
@@ -296,6 +305,7 @@ namespace BizSim.GPlay.AgeSignals
             -7  => AgeSignalsErrorCode.PlayServicesVersionOutdated,
             -8  => AgeSignalsErrorCode.ClientTransientError,
             -9  => AgeSignalsErrorCode.AppNotOwned,
+            -10 => AgeSignalsErrorCode.SdkVersionOutdated,
             -100 => AgeSignalsErrorCode.InternalError,
             _   => AgeSignalsErrorCode.InternalError
         };
@@ -312,6 +322,7 @@ namespace BizSim.GPlay.AgeSignals
             -7  => nameof(AgeSignalsErrorCode.PlayServicesVersionOutdated),
             -8  => nameof(AgeSignalsErrorCode.ClientTransientError),
             -9  => nameof(AgeSignalsErrorCode.AppNotOwned),
+            -10 => nameof(AgeSignalsErrorCode.SdkVersionOutdated),
             -100 => nameof(AgeSignalsErrorCode.InternalError),
             _   => $"Unknown({errorCode})"
         };

@@ -88,7 +88,8 @@ namespace BizSim.GPlay.AgeSignals
                 return;
             }
 
-            flags.FullAccessGranted = noData || result.IsAdult;
+            flags.FullAccessGranted = noData || result.IsAdult
+                || (result.IsDeclared && !result.IsUnder(18));
 
             // Dynamic feature evaluation
             foreach (var feature in _features)
@@ -103,7 +104,8 @@ namespace BizSim.GPlay.AgeSignals
             }
 
             flags.PersonalizedAdsEnabled = noData || !result.IsUnder(_personalizedAdsMinAge);
-            flags.NeedsVerification = result.UserStatus == AgeVerificationStatus.Unknown;
+            flags.NeedsVerification = result.UserStatus == AgeVerificationStatus.Unknown
+                || result.UserStatus == AgeVerificationStatus.Declared;
         }
 
         /// <summary>
