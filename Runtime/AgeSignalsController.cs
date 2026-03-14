@@ -51,7 +51,11 @@ namespace BizSim.GPlay.AgeSignals
 
                 if (_instance == null)
                 {
+#if UNITY_2023_1_OR_NEWER
                     _instance = FindAnyObjectByType<AgeSignalsController>();
+#else
+                    _instance = FindObjectOfType<AgeSignalsController>();
+#endif
                     if (_instance == null)
                     {
                         var go = new GameObject("AgeSignalsController");
