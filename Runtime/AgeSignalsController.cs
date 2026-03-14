@@ -51,7 +51,7 @@ namespace BizSim.GPlay.AgeSignals
 
                 if (_instance == null)
                 {
-                    _instance = FindFirstObjectByType<AgeSignalsController>();
+                    _instance = FindAnyObjectByType<AgeSignalsController>();
                     if (_instance == null)
                     {
                         var go = new GameObject("AgeSignalsController");
