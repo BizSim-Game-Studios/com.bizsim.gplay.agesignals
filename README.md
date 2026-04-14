@@ -1,3 +1,15 @@
+> # ⚠ DEPRECATED — Package Moved
+>
+> This package has been **deprecated** and superseded by `com.bizsim.google.play.agesignals`.
+>
+> **New repository:** https://github.com/BizSim-Game-Studios/com.bizsim.google.play.agesignals
+>
+> The new package is a clean-slate rebuild under the `com.bizsim.google.play.*` / `com.bizsim.unity.figma.importer` naming convention, with a Unity 6.0 LTS floor and workspace-standardized conventions. There is no automated migration path — consumers must manually switch to the new package id. See the new repository's `CHANGELOG.md` for details.
+>
+> This repository is **archived** and will not receive further updates. The historical content below is preserved for reference only.
+>
+> ---
+
 # Google Play Age Signals Bridge
 
 [![Unity 6000.3+](https://img.shields.io/badge/Unity-6000.3%2B-blue.svg)](https://unity.com)
